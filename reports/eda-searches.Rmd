@@ -334,7 +334,7 @@ zeroResultsRate_all %>% mutate(day = day(day)) %>%
     mutate(day = factor(day, levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"))) %>%
     
    ggplot(zeroResultsRate_all,
-    mapping = aes(x = day, y = zero_results_prop)) + geom_point(size = 3, colour="red") + labs(y =
+    mapping = aes(x = day, y = zero_results_prop)) + geom_point(size = 3, colour="red") + geom_line() + labs(y =
     "Taxa de Resultados Zero", x = "Dias")
 
 zeroResultsRate_all %>%
@@ -380,12 +380,12 @@ zeroResultsRate  %>% mutate(day = day(day)) %>%
     mutate(day = factor(day, levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"))) %>%
     ggplot(zeroResultsRate,
     mapping = aes(x = day, y = zero_results_prop, colour = group))  + geom_point(size = 2) + geom_line(aes(group =
-    group), size = 0.5) + labs(y = "Taxa de Cliques", x = "Dias", colour = "Grupo")
+    group), size = 0.5) + labs(y = "Taxa de Resultados Zero", x = "Dias", colour = "Grupo")
 
 
 
     ggplot(zeroResultsRate, mapping = aes(x = group, y = zero_results_prop))   +
-  geom_boxplot(coef = 1000, width = .5) + labs(y="Taxa de Cliques", x="Grupos")
+  geom_boxplot(coef = 1000, width = .5) + labs(y="Taxa de Resultados Zero", x="Grupos")
     
     
 zeroResultsRate %>%
