@@ -48,7 +48,7 @@ buscas3 = buscas2 %>%
 #1. Qual é a nossa taxa de cliques geral diária? Como isso varia entre os grupos?
 
 
-Para responder essa pergunta será usado principalmente as variáveis num_clicks que retorna O número de páginas que o usuário visitou a partir da busca e da variável group que divide o conjunto de dados em dois grupos: A e B (não se tem mais informações sobre do que se trata cada um desses grupos). Primeiramente, é necessário avaliar a distribuição de cada uma dessas variaveis.
+Para responder essa pergunta será usado principalmente a variável num_clicks, que retorna o número de páginas que o usuário visitou a partir da busca e a variável group que divide o conjunto de dados em dois grupos: A e B (não se tem mais informações sobre do que se trata cada um desses grupos). Primeiramente, é necessário avaliar a distribuição de cada uma dessas variaveis.
 
 Analisando a variável group, nota-se que o grupo B é maior que o grupo A (uma diferença de 9111). As características desses grupos poderiam explicar o motivo dessa diferença, no entanto, não se tem acesso a essa informação. Nesse sentido, deve-se levar em consideração que os resultados podem sofrer influência dessa diferença entre os grupos.
 
@@ -67,7 +67,8 @@ TamanhoB = length(which(group=="b")))
 
 ```
 
-Quanto a variável num_clicks, observando o histograma nota-se que a maioria dos dados estão concentrados a esquerda indicando que uma distribuição assimétrica positiva (positive skew), o que é confirmado pelo fato da média ser maior que a mediana. É possível também observar uma cauda à direita, esse comportamento indica a presença de valores discrepantes, o que é confirmado pelo alto desvio padrão apresentado.
+Quanto a variável num_clicks, observando o histograma nota-se que a maioria dos dados estão concentrados à esquerda indicando uma distribuição assimétrica positiva (positive skew), o que é confirmado pelo fato da média ser maior que a mediana. É possível também observar uma cauda à direita que indica a presença de valores discrepantes, o que é confirmado pelo alto desvio padrão apresentado. 
+
 
 
 ```{r}
@@ -269,7 +270,7 @@ buscas <- dplyr::filter(buscas,  first_click<500)
 
 ```
 
-Analisando diariamente é possível observar que 75% dos dados observados por dia se comportam da mesma forma. Nota-se também que 50% dos dados indicam que os usuários tendem acessar o primeiro resultado da busca inicialmente, comportamento que se mantém diariamente. Percebe-se então que a variação entre os dias se dá em função da diferença nos valores extremos e menos frequentes, como pode ser observado no boxplot e na tabela abaixo.
+Analisando diariamente é possível perceber que 75% dos dados observados por dia se comportam da mesma forma. Nota-se também que 50% dos valores indicam que os usuários tendem acessar o primeiro resultado da busca inicialmente, comportamento esse que se mantém diariamente. Percebe-se então que a variação entre os dias se dá em função da diferença nos valores extremos e menos frequentes, como pode ser observado no boxplot e na tabela abaixo.
 
 ```{r}
 
@@ -294,7 +295,7 @@ buscas %>%
 
 Para responder essa pergunta será utilizada a variável results que indica a quantidade de resultados que a busca retornou. Portanto, é importante analisar sua distribuição primeiramente. 
 
-A partir do histograma abaixo, é possível observar que os dados estão mais concentrados à esquerda e que a distribuição possuí uma longa cauda. É possível observar também que a maioria das ocorrências retornam cerca de 20 resultados, o que é confirmado pelo valor da Moda. Por outro lado, é possível observar que houveram buscas que retornaram 500 resultados e ainda buscas que retornaram nenhum resultado. Sabe-se que esse último é um fator negativo em um sistema de buscas, por este motivo, surge a necessidade de analisar a proporção de pesquisas que retornaram zero como resultado (taxa de resultados zero).  
+A partir do histograma abaixo, é possível observar que os dados estão mais concentrados à esquerda e que a distribuição possuí uma longa cauda. Nota-se também que a maioria das ocorrências retornam cerca de 20 resultados, o que é confirmado pelo valor da Moda. Por outro lado, é possível observar que houveram buscas que retornaram 500 resultados e ainda buscas que retornaram nenhum resultado. Sabe-se que esse último é um fator negativo em um sistema de buscas, por este motivo, surge a necessidade de analisar a proporção de pesquisas que retornaram zero como resultado (taxa de resultados zero).  
 
 
 
@@ -319,7 +320,7 @@ buscas %>%
 
 ```
 
-A taxa de resultados zero foi calculada a partir da razão entre o número de buscas que retornaram zero e o total de buscas realizadas para cada dia. Os resultados sugerem, a partir da visualização e da tabela abaixo, que no geral há uma pequena variação na taxa de cliques zero, uma variação que chega no máximo a 3% aproximadamente, apresentando em média uma taxa de 18,61% diariamente. 
+A taxa de resultados zero foi calculada a partir da razão entre o número de buscas que retornaram zero e o total de buscas realizadas para cada dia. A partir da visualização e da tabela abaixo, as análises sugerem uma taxa de resultados zero de em média 18,61% diariamente e uma pequena variação que chega no máximo a aproximadamente 3%.
 
 ```{r}
 
@@ -402,7 +403,7 @@ zeroResultsRate %>%
 #4. A duração da sessão é aproximadamente o tempo entre o primeiro e o último evento de uma sessão. Escolha uma variável do conjunto de dados e descreva sua relação com o tamanho da sessão. Visualize o relacionamento.
 
 
-Para responder essa pergunta será utilizada a variável session_length, que diz respeito a duração de uma sessão em segundos. A partir do histograma e da tabela abaixo, é possível notar além da concentração de dados à esquerda, uma longa cauda à direita. Nota-se valores discrepantes, que aparecem com menor frequência e que não fazem sentido em ordens de grandeza para dizer respeito a duração de uma sessão, por este motivo esses dados não serão considerados nas análises subsequentes.
+Para responder essa pergunta será utilizada a variável session_length, que diz respeito a duração de uma sessão em segundos. A partir do histograma e da tabela abaixo, é possível notar além da concentração de dados à esquerda, uma longa cauda à direita. Percebe-se valores discrepantes, que aparecem com menor frequência e que não fazem sentido em ordens de grandeza para dizer respeito a duração de uma sessão, por este motivo esses dados não serão considerados nas análises subsequentes.
 
 ```{r}
 options(scipen = 999)
