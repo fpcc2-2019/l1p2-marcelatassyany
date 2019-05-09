@@ -1,0 +1,83 @@
+O objeto principal da análise são as buscas e a navegação depois da busca. Criamos esses dados a partir dos dados originais da wikimedia em `/data/search_data.csv`.
+
+Aqui, exploramos esses dados.
+
+```{r setup}
+library(tidyverse)
+library(here)
+library(lubridate)
+theme_set(theme_bw())
+```
+
+```{r ETL}
+buscas = read_csv(here::here("data/search_data.csv")) %>%
+    mutate(day = round_date(session_start_date, unit = "day")) %>% 
+        mutate(clicks = ifelse(num_clicks>0,1,0))
+
+```
+
+```{r}
+
+
+buscas %>%
+    ggplot(aes(x = first_click)) +
+    geom_density()
+
+buscas %>%
+    summarise(mean = mean(first_click),
+                          min = min(first_click),
+                          max = max(first_click))
+
+
+
+buscas %>%
+    ggplot(aes(x = num_clicks)) +
+    geom_density()
+
+buscas %>%
+    summarise(mean = mean(num_clicks),
+                          min = min(num_clicks),
+                          max = max(num_clicks))
+
+
+buscas %>%
+    ggplot(aes(x = results)) +
+    geom_density()
+
+buscas %>%
+    summarise(mean = mean(results),
+                          min = min(results),
+                          max = max(results))
+
+
+```
+
+```{r}
+
+taxa_media = buscas %>%
+    group_by(session_id)%>%
+        summarise(maximo = max(search_index), click = sum(clicks),
+                  day = max(day),
+                  divisao = (click/maximo)*100,
+                  group = max(group) )
+
+taxa_media %>%
+    ggplot(aes(x = day, y = divisao, group = day)) +
+    geom_boxplot() + geom_jitter(
+        
+        width = 0.5,
+        alpha = .4,
+        size = 1,
+        color = "salmon")
+
+valor_medio = taxa_media %>%
+    group_by(day) %>%
+     summarise(media = mean(divisao))
+
+valor_medio %>%
+    ggplot(aes(x = day, y = media  )) +
+    geom_point()
+
+
+
+```

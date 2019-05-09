@@ -1,26 +1,501 @@
 ---
 title: "EDA buscas"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
-O objeto principal da análise são as buscas e a navegação depois da busca. Criamos esses dados a partir dos dados originais da wikimedia em `/data/search_data.csv`. 
+Aluna: Marcela Tassyany Galdino Santos
 
-Aqui, exploramos esses dados. 
+
+Este relatório tem como objetivo expor uma análise exploratória dos dados fornecidos pela Wikimedia Foundation que vem de um esquema de rastreamento, usados para avaliar a satisfação do usuário. A análise realizada se dará com o intuito de responder quatro questionamentos pré-estabelecidos e que serão exibidos nas próximas seções.
 
 ```{r setup}
 library(tidyverse)
 library(here)
 library(lubridate)
+library(viridis)
+library(grid)
+library(gridExtra)
 theme_set(theme_bw())
 ```
 
 ```{r ETL}
-buscas = read_csv(here::here("data/search_data.csv"))
+buscas = read_csv(here::here("data/search_data.csv"))  %>%
+    mutate(day = round_date(session_start_date, unit = "day"))
+
+#cliques/numero de sessoes
+buscas2 = buscas %>% 
+    mutate(clicks = num_clicks > 0)%>% 
+    mutate(zeroResults = results == 0)
+
+
+
+buscas3 = buscas2 %>%
+    group_by(session_id) %>%
+    summarise(
+    max_search_index = max(search_index),
+    click = max(clicks),
+    zeroResult = sum(zeroResults),
+    day = max(day),
+    zero_results_prop = (zeroResult / max_search_index),
+    group = max(group),
+    session_length = max(session_length)
+    )
+    
+```
+
+#1. Qual é a nossa taxa de cliques geral diária? Como isso varia entre os grupos?
+
+
+Para responder essa pergunta será usado principalmente as variáveis num_clicks que retorna O número de páginas que o usuário visitou a partir da busca e da variável group que divide o conjunto de dados em dois grupos: A e B (não se tem mais informações sobre do que se trata cada um desses grupos). Primeiramente, é necessário avaliar a distribuição de cada uma dessas variaveis.
+
+Analisando a variável group, nota-se que o grupo B é maior que o grupo A (uma diferença de 9111). As características desses grupos poderiam explicar o motivo dessa diferença, no entanto, não se tem acesso a essa informação. Nesse sentido, deve-se levar em consideração que os resultados podem sofrer influência dessa diferença entre os grupos.
+
+```{r}
+buscas %>%
+   distinct(session_id, .keep_all=TRUE) %>%
+ggplot() + 
+  geom_bar(mapping = aes(x = group), stat = "count")  + labs(y="Número de Grupos", x="")
+
+
+
+buscas %>%
+    distinct(session_id, .keep_all=TRUE) %>%
+    summarise(TamanhoA = length(which(group=="a")),
+TamanhoB = length(which(group=="b")))
+
+```
+
+Quanto a variável num_clicks, observando o histograma nota-se que a maioria dos dados estão concentrados a esquerda indicando que uma distribuição assimétrica positiva (positive skew), o que é confirmado pelo fato da média ser maior que a mediana. É possível também observar uma cauda à direita, esse comportamento indica a presença de valores discrepantes, o que é confirmado pelo alto desvio padrão apresentado.
+
+
+```{r}
+
+buscas %>%
+    ggplot(aes(x = num_clicks)) +
+    geom_histogram(bins = 20, fill = "white", color = "blue")  + geom_rug(alpha = .3) + labs(y =
+    "Frequência", x = "Número de Cliques") 
+
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+buscas %>%
+    summarise(
+    Media = mean(num_clicks),
+    Mediana = median(num_clicks),
+    Moda = getmode(num_clicks),
+    Desvio = sd(num_clicks),
+    Minimo = min(num_clicks),
+    Maximo = max(num_clicks)
+    )
+
+```
+ 
+Analisando a distribuição de número de cliques por grupo, mediante os histogramas, boxplot e tabela abaixo, é possível observar que há indícios de que tanto para o grupo A como para o grupo B os usuários tendem com mais frequência ou a clicar em nenhuma ou em apenas uma página retornada a partir da busca. No entanto, nota-se uma maior variação nos dados do grupo A, em que o valor máximo chega a 36 cliques, se comparado ao grupo B, em que o valor máximo foi de 3 cliques. Então, possívelmente a cauda observada no histograma anterior em que foi analisada a variável num_clicks no geral, se dá devido as características do grupo A. 
+
+
+
+```{r}
+
+
+
+
+buscas %>%
+    ggplot(aes(x = num_clicks)) +
+    geom_histogram(bins = 20, fill = "white", color = "blue")  + geom_rug(alpha = .3) + labs(y =
+    "Frequência", x = "Número de Cliques") + facet_wrap(~ group)
+
+ggplot(buscas, mapping = aes(x = group, y = num_clicks))   +
+  geom_boxplot(coef = 1000, width = .5) + labs(y="Número de Cliques", x="Grupos")
+
+
+
+buscas %>%
+    group_by(group)%>%
+    summarise(
+    Media = mean(num_clicks),
+    Mediana = median(num_clicks),
+    Moda = getmode(num_clicks),
+    Desvio = sd(num_clicks),
+    Minimo = min(num_clicks),
+    Maximo = max(num_clicks)
+    )
+
+
+```
+
+
+Também é possível observar que o total de cliques para o grupo A é consideravelmente superior ao do grupo B, assim como o total de buscas obtido a partir da variável search_index.
+
+
+```{r}
+
+buscas %>%
+    group_by(group)%>%
+    summarise(
+    Total_de_Cliques = sum(num_clicks),
+    Total_de_Buscas = sum(search_index)
+    )
+
+```
+
+
+Para calcular a taxa de cliques, foi criada a variável num_clicks_prop que retorna a proporção de sessões de pesquisa em que o usuário clicou em um dos resultados exibidos. Para calcular essa taxa se contabilizava 1 para a ocorrência de pelo menos 1 clique por sessão, e se efetuava a razão entre essa soma e o total de sessões por dia.
+
+
+Por meio do gráfico abaixo e das medidas de sumarização dos dados, é possível observar que há uma variação na taxa de cliques ao longo dos dias, mas essa diferença não é tão evidente e chega a ser no máximo de 1,77% considerando a diferença entre os dias com maior e menor proporções. Os resultados dão indícios que em média a taxa de cliques é de 38,8%. durante os dias.
+
+
+```{r}
+
+clickthrough_rate_all = buscas3 %>%
+    group_by(day) %>%
+    summarise(num_clicks_prop = (sum(click)/length(session_id)*100))
+
+
+clickthrough_rate_all  %>% mutate(day = day(day)) %>%
+    mutate(day = factor(day, levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"))) %>%
+    ggplot(clickthrough_rate_all,
+    mapping = aes(x = day, y = num_clicks_prop)) + geom_point(size = 3, colour="red") +  labs(y = "Taxa de Cliques", x = "Dias")
+
+
+clickthrough_rate_all %>%
+    summarise(
+    Media = mean(num_clicks_prop),
+    Mediana = median(num_clicks_prop),
+    Desvio = sd(num_clicks_prop),
+    Minimo = min(num_clicks_prop),
+    Maximo = max(num_clicks_prop)
+    )
+
+```
+
+
+Quando analisada por grupos, se percebe  uma diferença considerável para a taxa de cliques, que apresentou valores em média de 66,8% para o Grupo A e 17,23% para o grupo B. Essa diferença é esperada, uma vez que, a partir da analise das distribuições realizadas anteriormente, foi observado que o Grupo A realiza muito mais buscas e muito mais cliques que o grupo B. Quanto ao comportamento entre os dias, nota-se uma maior variação para o grupo B, chegando a 6,04%, se comparado ao grupo A em que essa variação chegou até 2,72% (valores obtidos a partir da diferença entre os dias com maior e menor taxa de cliques, respectivamente). Isso é confirmado pelo boxplot e pelos valores apresentados para o IIQ (Intervalo Interquartil), de 1,45% e 4,77% para o grupo A e B, respectivamente.
+
+
+```{r}
+
+
+buscas_group_a = buscas3 %>%
+    filter(group == 'a')
+
+buscas_group_b = buscas3 %>%
+    filter(group == 'b')
+
+
+clickthroughrate_b = buscas_group_b %>%
+    group_by(day) %>%
+    summarise(num_clicks_prop = (sum(click)/length(session_id))*100,
+        
+              group = "b")
+
+clickthroughrate_a = buscas_group_a %>%
+    group_by(day) %>%
+    summarise(num_clicks_prop = (sum(click)/length(session_id))*100,
+              group = "a")
+
+clickthrough_rate = rbind(clickthroughrate_a, clickthroughrate_b)
+
+
+
+
+clickthrough_rate  %>% mutate(day = day(day)) %>%
+    mutate(day = factor(day, levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"))) %>%
+    ggplot(clickthrough_rate,
+    mapping = aes(x = day, y = num_clicks_prop, colour = group))  + geom_point(size = 2) + geom_line(aes(group =
+    group), size = 0.5) + labs(y = "Taxa de Cliques", x = "Dias", colour = "Grupo")
+
+
+
+    ggplot(clickthrough_rate, mapping = aes(x = group, y = num_clicks_prop))   +
+  geom_boxplot(coef = 1000, width = .5) + labs(y="Taxa de Cliques", x="Grupos")
+    
+    
+clickthrough_rate %>%
+    group_by(group) %>%
+    summarise(
+    Media = mean(num_clicks_prop),
+    Mediana = median(num_clicks_prop),
+    IIQ = IQR(num_clicks_prop),
+    Desvio = sd(num_clicks_prop),
+    Minimo = min(num_clicks_prop),
+    Maximo = max(num_clicks_prop)
+    )
+    
+
+    
+```
+
+
+#2. Quais resultados as pessoas tendem a tentar primeiro? Como isso muda no dia-a-dia?
+
+
+Para responder essa pergunta é necessário primeiramente analisar a distribuição da variável first_click que retorna qual a posição dos resultados que os usuários tentaram primeiro.
+
+Percebe-se que a distribuição concentra-se à esquerda e apresenta uma longa cauda à direita, o que indica a presença de valores discrepantes que é ratificado pelo alto desvio padrão apresentado. Por exemplo, existe um caso constando que o resultado da 4103º posição foi acessado primeiro. Esse é um caso atípico  e seria necessário maiores investigações e informações para explicar esta ocorrência. Para este caso, pode ter sido usado algum sistema fazendo uso de técnicas de recuperação de informação (deep learning e machine learning), no entanto, são apenas suposições, não há informações suficientes para descrevê-lo. 
+
+Esse e outros valores discrepantes podem interferir negativamente na avaliação, principalmente ao se comparar o primeiro clique diariamente. Por meio do histograma abaixo, é possível notar que a maioria das ocorrências se concentram abaixo de 500, por esse motivo e por serem dados que muito provavelmente não condiz com a realidade, valores acima desse limiar serão considerados outliers e serão removidos da análise.
+
+Observando ainda o mesmo histograma e o valor da mediana, é possível constatar um comportamento esperado, os usuários tendem a acessar o primeiro resultado da busca na maioria dos casos.
+
+
+
+```{r}
+
+buscas <- dplyr::filter(buscas,  !is.na(first_click))
+
+
+
+buscas %>% 
+    ggplot(aes(x = first_click)) + 
+    geom_histogram(bins = 30, boundary=0, fill = "white", color = "blue")  + geom_rug(alpha = .3) + labs(y="Frequência", x="Primeiro Clique") 
+
+buscas %>% 
+ summarise(Media = mean(first_click, na.rm=TRUE),
+           Mediana = median(first_click, na.rm=TRUE),
+           Moda = getmode(first_click),
+ Desvio = sd(first_click, na.rm=TRUE),
+ Minimo = min(first_click,na.rm=TRUE),
+Maximo = max(first_click,na.rm=TRUE))
+
+
+
+buscas <- dplyr::filter(buscas,  first_click<500)
+
+```
+
+Analisando diariamente é possível observar que 75% dos dados observados por dia se comportam da mesma forma. Nota-se também que 50% dos dados indicam que os usuários tendem acessar o primeiro resultado da busca inicialmente, comportamento que se mantém diariamente. Percebe-se então que a variação entre os dias se dá em função da diferença nos valores extremos e menos frequentes, como pode ser observado no boxplot e na tabela abaixo.
+
+```{r}
+
+
+buscas  %>% mutate(day = day(day)) %>%
+    mutate(day = factor(day, levels = c("1","2","3","4","5","6","7","8","9"))) %>%
+    ggplot(buscas, mapping = aes(x = day, y = first_click))   + geom_boxplot(coef = 1000, width = .5) + labs(y="Primeiro Clique", x="Dias") + scale_y_log10()
+    
+
+buscas %>%
+    group_by(day) %>%
+    summarise(
+    Media = mean(first_click, na.rm = TRUE),
+    Mediana = median(first_click, na.rm = TRUE),
+    Desvio = sd(first_click, na.rm = TRUE),
+    Minimo = min(first_click, na.rm = TRUE),
+    Maximo = max(first_click, na.rm = TRUE)
+    )
+```
+
+#3. Qual é a nossa taxa de resultados zero diária no geral? Como isso varia entre os grupos?
+
+Para responder essa pergunta será utilizada a variável results que indica a quantidade de resultados que a busca retornou. Portanto, é importante analisar sua distribuição primeiramente. 
+
+A partir do histograma abaixo, é possível observar que os dados estão mais concentrados à esquerda e que a distribuição possuí uma longa cauda. É possível observar também que a maioria das ocorrências retornam cerca de 20 resultados, o que é confirmado pelo valor da Moda. Por outro lado, é possível observar que houveram buscas que retornaram 500 resultados e ainda buscas que retornaram nenhum resultado. Sabe-se que esse último é um fator negativo em um sistema de buscas, por este motivo, surge a necessidade de analisar a proporção de pesquisas que retornaram zero como resultado (taxa de resultados zero).  
+
+
+
+```{r}
+
+buscas %>%
+    ggplot(aes(x = results)) +
+    geom_histogram(bins = 20, fill = "white", color = "blue")  + geom_rug(alpha = .3) + labs(y =
+    "Frequência", x = "Quantidade de Resultados da Busca")
+
+    
+buscas %>%
+    summarise(
+    Media = mean(results),
+    Mediana = median(results),
+    Moda = getmode(results),
+    Desvio = sd(results),
+    Minimo = min(results),
+    Maximo = max(results)
+    )
+
+
+```
+
+A taxa de resultados zero foi calculada a partir da razão entre o número de buscas que retornaram zero e o total de buscas realizadas para cada dia. Os resultados sugerem, a partir da visualização e da tabela abaixo, que no geral há uma pequena variação na taxa de cliques zero, uma variação que chega no máximo a 3% aproximadamente, apresentando em média uma taxa de 18,61% diariamente. 
+
+```{r}
+
+
+zeroResultsRate_all = buscas2 %>%
+    group_by(day) %>%
+    summarise(zero_results_prop = (sum(zeroResults) / length(search_index)*100))
+
+        
+zeroResultsRate_all %>% mutate(day = day(day)) %>%
+    mutate(day = factor(day, levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"))) %>%
+    
+   ggplot(zeroResultsRate_all,
+    mapping = aes(x = day, y = zero_results_prop)) + geom_point(size = 3, colour="red") + labs(y =
+    "Taxa de Resultados Zero", x = "Dias")
+
+zeroResultsRate_all %>%
+    summarise(
+    Media = mean(zero_results_prop),
+    Mediana = median(zero_results_prop),
+    Desvio = sd(zero_results_prop),
+    Minimo = min(zero_results_prop),
+    Maximo = max(zero_results_prop)
+    )
+
+```
+
+Analisando por grupo, notou-se uma variação durante os dias de até 3,64% para o grupo A e 2,27% para o grupo B e uma média de 18,54% e 18,73%, para A e B, respectivamente. Percebe-se, então, um comportamento muito semelhante ao anteriormente descrito, isso é um índicío de que as características dos grupos não influencia na taxa de resultados zero, e que essa característica possívelmente está mais relacionado ao sistema em si do que ao comportamento do usuário.
+
+
+
+```{r}
+
+
+
+buscas_group_a = buscas2 %>%
+    filter(group == 'a')
+
+buscas_group_b = buscas2 %>%
+    filter(group == 'b')
+
+zeroResultsRate_a = buscas_group_a %>%
+    group_by(day) %>%
+    summarise(zero_results_prop= (sum(zeroResults)/length(search_index)*100),
+              group = "a")
+
+zeroResultsRate_b = buscas_group_b %>%
+    group_by(day) %>%
+    summarise(zero_results_prop = (sum(zeroResults)/length(search_index)*100),
+              group = "b")
+
+
+zeroResultsRate = rbind(zeroResultsRate_a, zeroResultsRate_b)
+
+
+zeroResultsRate  %>% mutate(day = day(day)) %>%
+    mutate(day = factor(day, levels = c("1", "2", "3", "4", "5", "6", "7", "8", "9"))) %>%
+    ggplot(zeroResultsRate,
+    mapping = aes(x = day, y = zero_results_prop, colour = group))  + geom_point(size = 2) + geom_line(aes(group =
+    group), size = 0.5) + labs(y = "Taxa de Cliques", x = "Dias", colour = "Grupo")
+
+
+
+    ggplot(zeroResultsRate, mapping = aes(x = group, y = zero_results_prop))   +
+  geom_boxplot(coef = 1000, width = .5) + labs(y="Taxa de Cliques", x="Grupos")
+    
+    
+zeroResultsRate %>%
+    group_by(group) %>%
+    summarise(
+    Media = mean(zero_results_prop),
+    Mediana = median(zero_results_prop),
+    Desvio = sd(zero_results_prop),
+    Minimo = min(zero_results_prop),
+    Maximo = max(zero_results_prop)
+    )
+
+```
+
+#4. A duração da sessão é aproximadamente o tempo entre o primeiro e o último evento de uma sessão. Escolha uma variável do conjunto de dados e descreva sua relação com o tamanho da sessão. Visualize o relacionamento.
+
+
+Para responder essa pergunta será utilizada a variável session_length, que diz respeito a duração de uma sessão em segundos. A partir do histograma e da tabela abaixo, é possível notar além da concentração de dados à esquerda, uma longa cauda à direita. Nota-se valores discrepantes, que aparecem com menor frequência e que não fazem sentido em ordens de grandeza para dizer respeito a duração de uma sessão, por este motivo esses dados não serão considerados nas análises subsequentes.
+
+```{r}
+options(scipen = 999)
+
+relationResultsSessionLength = buscas2 %>%
+group_by(session_id) %>%
+    summarise(
+    resultsTotalinSession = sum(results),
+    clicksTotalinSession = sum(num_clicks),
+    session_length = first(session_length)
+    ) #o session_length é o mesmo para toda a sessao, essa eh apenas uma forma de filtrar um unico valor
+
+
+relationResultsSessionLength %>% 
+    ggplot(aes(x = session_length)) + 
+    geom_histogram(bins = 20,boundary=0, fill = "white", color = "blue")  + geom_rug(alpha = .3) + labs(y="Frequência", x="Duração da Sessão")
+
+relationResultsSessionLength %>% 
+ summarise(Media = mean(session_length, na.rm=TRUE),
+           Mediana = median(session_length, na.rm=TRUE),
+ Desvio = sd(session_length, na.rm=TRUE),
+ Minimo = min(session_length,na.rm=TRUE),
+Maximo = max(session_length,na.rm=TRUE))
+
+
+relationResultsSessionLength <- dplyr::filter(relationResultsSessionLength,  session_length<10000)
+
+```
+
+
+As próximas análises destinam-se a analisar se a duração da sessão possui alguma relação com o total de resultados que as buscas retornaram (total de results por sessão), bem como se a duração da sessão possui relação com o total de número de páginas que o usuário visitou a partir da busca (total de num_clicks por sessão).
+
+
+A partir dos gráficos de dispersão e dos coeficientes de correlação é possível observar uma correlação moderada positiva da duração da sessão tanto para o total de results como para o total de cliques. No entanto, é possível observar que para o total de cliques a correlação é mais forte se comparada ao total de results. Nesse sentido, os resultados sugerem que possívelmente a duração de uma sessão sofra mais influência do número de cliques do que do total de resultados retornados pelas buscas.
+
+
+```{r}
+
+correlacao= grobTree(textGrob(paste("Spearm Correlation : ", round(cor(relationResultsSessionLength$session_length, relationResultsSessionLength$resultsTotalinSession, method="spearman"), 4) ), x = 0.68, y = 0.96, hjust = 0, gp = gpar(col = "black", fontsize = 9)))
+
+ 
+
+relationResultsSessionLength %>%
+    
+    ggplot (aes(x=resultsTotalinSession,
+                y=session_length,)) +
+    geom_point() + annotation_custom(correlacao) + theme(plot.title = element_text(hjust = 0.5)) + labs(x="Total de Buscas na Sessão", y="Duração da Sessão") 
+
+
 ```
 
 ```{r}
-buscas %>% 
-    ggplot(aes(x = results)) + 
-    geom_histogram(binwidth = 5) 
+relationResultsSessionLength %>%
+    summarise(
+    Correlation_Spearman = cor(resultsTotalinSession, session_length, method = "spearman"),
+    Correlation_Kendall = cor(resultsTotalinSession, session_length, method = "kendall")
+    )
+
 ```
+
+```{r}
+
+
+correlacao= grobTree(textGrob(paste("Spearm Correlation : ", round(cor(relationResultsSessionLength$session_length, relationResultsSessionLength$clicksTotalinSession, method="spearman"), 4) ), x = 0.68, y = 0.96, hjust = 0, gp = gpar(col = "black", fontsize = 9)))
+
+ 
+
+relationResultsSessionLength %>%
+    
+    ggplot (aes(x=clicksTotalinSession,
+                y=session_length)) +
+    geom_point() + annotation_custom(correlacao) + theme(plot.title = element_text(hjust = 0.5)) + labs(x="Número de Cliques por Sessão", y="Duração da Sessão") 
+
+
+```
+
+
+
+
+
+```{r}
+relationResultsSessionLength %>%
+    summarise(
+    Correlation_Spearman = cor(clicksTotalinSession, session_length, method = "spearman"),
+    Correlation_Kendall = cor(clicksTotalinSession, session_length, method = "kendall")
+    )
+
+```
+
+
+
+
+
+
+
 
